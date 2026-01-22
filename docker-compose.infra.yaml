@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.0 # Use a specific version
+    container_name: etcd
+    labels:
+      prometheus.scrape: "true"
+      prometheus.path: "/metrics" # This value is used for __metrics_path__
+      prometheus.port: "2379"
+      environment: "production"
+    user: root
+
+    ports:
+
+      - "2379:2379" # Client port, used for metrics
+      - "2380:2380" # Peer port
+    command:
+      - etcd
+      - --name=node1
+      - --enable-v2=true
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --initial-cluster-token=etcd-cluster-1
+      - --initial-cluster=node1=http://etcd:2380
+      - --initial-cluster-state=new
+    networks:
+      - monitoring-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    privileged: true
+    user: root
+    ports:
+      - "9090:9090"
+    volumes:
+      # Mount the local prometheus.yml file into the container
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /run/user/1000/podman/podman.sock:/var/run/podman.sock:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.listen-address=:9090
+    security_opt:
+      - label=disable
+      - no-new-privileges=true
+    depends_on:
+      - etcd
+    networks:
+      - monitoring-network
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    environment:
+      # Optional: Set default admin user credentials (default is admin/admin)
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - monitoring-network
+    depends_on:
+      - prometheus
+  haproxy-lb:
+    image: haproxy:latest
+    ports:
+      - "8091:8091"
+      - "8404:8404"
+      - "8405:8405"
+    volumes:
+      - ./infra/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - monitoring-network
+networks:
+  monitoring-network:
+    driver: bridge
+
+volumes:
+  grafana-data:
+

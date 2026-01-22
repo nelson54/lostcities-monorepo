@@ -1,0 +1,133 @@
+version: '3'
+
+volumes:
+  java-cache:
+  grafana-data:
+  tempo-data:
+  postgres_data_matches:
+  postgres_data_accounts:
+  redis_data:
+  rabbit_data:
+  prometheus_data:
+
+services:
+
+  accounts-database:
+    image: postgres:alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: accounts
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: lostcities-accounts
+
+    ports:
+      - "5432:5432"
+    volumes:
+      - "postgres_data_accounts:/var/lib/postgresql/data/"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  matches-database:
+    image: postgres:alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: matches
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: lostcities-matches
+    volumes:
+      - "postgres_data_matches:/var/lib/postgresql/data/"
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6-alpine3.17
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - "redis_data:/data"
+    working_dir: /data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbit_data:/var/lib/rabbitmq/
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics",  "check_running", "&&", "rabbitmq-diagnostics", "ping"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    privileged: true
+    user: root
+    ports:
+      - "9090:9090"
+    volumes:
+      # Mount the local prometheus.yml file into the container
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /run/user/1000/podman/podman.sock:/var/run/podman.sock:ro
+      - prometheus_data:/prometheus     # Named volume (recommended)
+    command:
+      - '--storage.tsdb.path=/prometheus'
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-otlp-receiver
+      - --web.listen-address=:9090
+    security_opt:
+      - label=disable
+      - no-new-privileges=true
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    depends_on:
+      - prometheus
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    restart: unless-stopped
+    command: [ "--config=/etc/otelcol-config.yml" ]
+    volumes:
+      - ./infra/otel/otel-config.yml:/etc/otelcol-config.yml
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics (internal)
+      - "13133:13133" # Health check extension
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: [ "-config.file=/etc/tempo.yaml" , "-target=all"]
+
+    ports:
+      - "3200:3200"
+
+    volumes:
+      - ./infra/tempo/tempo-config.yaml:/etc/tempo.yaml
+      - tempo-data:/var/tempo
+  #ports:
+    # Tempo ingestion ports (OTLP, Jaeger, Zipkin, etc.)
+    #- "14268:14268" # Jaeger
+    #- "4317:4317"   # OTLP gRPC
+    #- "4318:4318"   # OTLP HTTP
+    #- "3200:3200"   # Tempo queries

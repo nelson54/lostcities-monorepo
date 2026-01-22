@@ -1,0 +1,30 @@
+[*]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+tab_width = 4
+
+[*.{yml,yaml}]
+indent_size = 2
+tab_width = 2
+
+[*.{vue,js,ts,tsx,html}]
+indent_size = 2
+tab_width = 2
+
+[*.{kt,kts}]
+ktlint_code_style = intellij_idea
+ktlint_standard_no-wildcard-imports = disabled
+
+ij_kotlin_code_style_defaults = kotlin_official
+ij_kotlin_keep_blank_lines_in_declarations = 1
+ij_kotlin_keep_blank_lines_in_code = 1
+ij_kotlin_name_count_to_use_star_import = 2147483647
+ij_kotlin_name_count_to_use_star_import_for_members = 2147483647
+ij_kotlin_align_multiline_parameters = false
+ij_kotlin_import_nested_classes = false
+ij_kotlin_packages_to_use_import_on_demand = unset

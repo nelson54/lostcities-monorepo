@@ -1,0 +1,284 @@
+variable "datacenters" {
+  type    = list(string)
+  default = ["tower-datacenter"]
+}
+
+variable memory {
+  type    = number
+  default = 1024
+}
+
+variable memory_max {
+  type    = number
+  default = 2048
+}
+
+variable memory_reservation_mb {
+  type    = number
+  default = 128
+}
+
+job "cockroach" {
+  datacenters = var.datacenters
+
+  type = "service"
+
+  update {
+    max_parallel     = 1
+    stagger          = "30s"
+    min_healthy_time = "30s"
+    healthy_deadline = "3m"
+  }
+
+  constraint {
+    distinct_hosts = true
+  }
+
+  group "cockroach-1" {
+    network {
+      mode = "bridge"
+      port "metrics" {}
+    }
+
+    constraint {
+      attribute = "${node.unique.name}"
+      value = "nomad-tower-red"
+    }
+
+    service {
+      name = "cockroach-metrics"
+      port = "metrics"
+      connect {
+        sidecar_service {
+          proxy {
+            expose {
+              path {
+                path = "/_status/vars"
+                protocol = "http"
+                listener_port = "metrics"
+                local_path_port = 8080
+              }
+            }
+          }
+        }
+      }
+    }
+
+    service {
+      name = "cockroach"
+      port = "26258"
+
+      connect {
+        sidecar_service {}
+      }
+    }
+
+    service {
+      name = "cockroach-1"
+      port = "26258"
+
+      connect {
+        sidecar_service {
+          proxy {
+            upstreams {
+              destination_name = "cockroach-2"
+              local_bind_port  = 26259
+            }
+            upstreams {
+              destination_name = "cockroach-3"
+              local_bind_port  = 26260
+            }
+          }
+        }
+      }
+    }
+
+    ephemeral_disk {
+      migrate = true
+      sticky  = true
+      size    = 1000 # 5GB
+    }
+
+    task "cockroach" {
+      driver = "podman"
+      resources {
+        memory     = var.memory
+        memory_max = var.memory_max
+      }
+      config {
+        image = "docker.io/cockroachdb/cockroach:latest"
+        args = [
+          "start",
+          "--insecure",
+          "--advertise-addr=localhost:26258",
+          "--listen-addr=localhost:26258",
+          "--http-addr=0.0.0.0:8080",
+          "--join=localhost:26258,localhost:26259,localhost:26260",
+          "--logtostderr=WARNING",
+        ]
+      }
+    }
+  }
+
+  group "cockroach-2" {
+    network {
+      mode = "bridge"
+      port "metrics" {}
+    }
+
+    service {
+      name = "cockroach-metrics"
+      port = "metrics"
+      connect {
+        sidecar_service {
+          proxy {
+            expose {
+              path {
+                path = "/_status/vars"
+                protocol = "http"
+                listener_port = "metrics"
+                local_path_port = 8080
+              }
+            }
+          }
+        }
+      }
+    }
+
+    service {
+      name = "cockroach"
+      port = "26259"
+
+      connect {
+        sidecar_service {}
+      }
+    }
+
+    service {
+      name = "cockroach-2"
+      port = "26259"
+
+      connect {
+        sidecar_service {
+          proxy {
+            upstreams {
+              destination_name = "cockroach-1"
+              local_bind_port  = 26258
+            }
+            upstreams {
+              destination_name = "cockroach-3"
+              local_bind_port  = 26260
+            }
+          }
+        }
+      }
+    }
+
+    ephemeral_disk {
+      migrate = true
+      sticky  = true
+      size    = 1000 # 5GB
+    }
+
+    task "cockroach" {
+      driver = "podman"
+      resources {
+        memory     = var.memory
+        memory_max = var.memory_max
+      }
+      config {
+        image = "docker.io/cockroachdb/cockroach:latest"
+        args = [
+          "start",
+          "--insecure",
+          "--advertise-addr=localhost:26259",
+          "--http-addr=0.0.0.0:8080",
+          "--listen-addr=localhost:26259",
+          "--join=localhost:26258,localhost:26259,localhost:26260",
+          "--logtostderr=WARNING",
+        ]
+      }
+    }
+  }
+
+  group "cockroach-3" {
+    network {
+      mode = "bridge"
+      port "metrics" {}
+    }
+
+    service {
+      name = "cockroach-metrics"
+      port = "metrics"
+      connect {
+        sidecar_service {
+          proxy {
+            expose {
+              path {
+                path = "/_status/vars"
+                protocol = "http"
+                listener_port = "metrics"
+                local_path_port = 8080
+              }
+            }
+          }
+        }
+      }
+    }
+
+    service {
+      name = "cockroach"
+      port = "26260"
+
+      connect {
+        sidecar_service {}
+      }
+    }
+
+    service {
+      name = "cockroach-3"
+      port = "26260"
+
+      connect {
+        sidecar_service {
+          proxy {
+            upstreams {
+              destination_name = "cockroach-1"
+              local_bind_port  = 26258
+            }
+            upstreams {
+              destination_name = "cockroach-2"
+              local_bind_port  = 26259
+            }
+          }
+        }
+      }
+    }
+
+    ephemeral_disk {
+      migrate = true
+      sticky  = true
+      size    = 1000 # 5GB
+    }
+
+    task "cockroach" {
+      driver = "podman"
+      resources {
+        memory     = var.memory
+        memory_max = var.memory_max
+      }
+      config {
+        image = "docker.io/cockroachdb/cockroach:latest"
+        args = [
+          "start",
+          "--insecure",
+          "--advertise-addr=localhost:26260",
+          "--http-addr=0.0.0.0:8080",
+          "--listen-addr=localhost:26260",
+          "--join=localhost:26258,localhost:26259,localhost:26260",
+          "--logtostderr=WARNING",
+        ]
+      }
+    }
+  }
+}

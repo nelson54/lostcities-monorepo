@@ -1,0 +1,32 @@
+global:
+  scrape_interval: 15s # By default, scrape targets every 15 seconds.
+
+scrape_configs:
+  - job_name: accounts
+    honor_labels: true
+    metrics_path: /management/accounts/actuator/prometheus
+    params:
+      format: [ "prometheus" ]
+    static_configs:
+    - targets: [ "host.containers.internal:4450", ]
+  - job_name: matches
+    honor_labels: true
+    metrics_path: /management/matches/actuator/prometheus
+    params:
+      format: [ "prometheus" ]
+    static_configs:
+      - targets: [ "host.containers.internal:4453", ]
+  - job_name: gamestate
+    honor_labels: true
+    metrics_path: /management/gamestate/actuator/prometheus
+    params:
+      format: [ "prometheus" ]
+    static_configs:
+      - targets: [ "host.containers.internal:4454", ]
+  - job_name: player-events
+    honor_labels: true
+    metrics_path: /management/player-events/actuator/prometheus
+    params:
+      format: [ "prometheus" ]
+    static_configs:
+      - targets: [ "host.containers.internal:4455", ]

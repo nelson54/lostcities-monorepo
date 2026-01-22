@@ -1,0 +1,160 @@
+version: '3'
+
+volumes:
+  java-cache:
+  resource-cache:
+  grafana-data:
+  postgres_data_matches:
+  postgres_data_accounts:
+  redis_data:
+  rabbit_data:
+
+services:
+
+  accounts-database:
+    image: postgres:alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: accounts
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: lostcities-accounts
+
+    ports:
+      - "5432:5432"
+    volumes:
+      - "postgres_data_accounts:/var/lib/postgresql/data/"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  matches-database:
+    image: postgres:alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: matches
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: lostcities-matches
+    volumes:
+      - "postgres_data_matches:/var/lib/postgresql/data/"
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6-alpine3.17
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - "redis_data:/data"
+    working_dir: /data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbit_data:/var/lib/rabbitmq/
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics",  "check_running", "&&", "rabbitmq-diagnostics", "ping"]
+
+  accounts:
+    image: ghcr.io/lostcities-cloud/lostcities-accounts:latest
+    restart: always
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      JAVA_OPTIONS: "-Xshareclasses:name=jvm-cache,cacheDir=/opt/sharedcache,cacheDirPerm=0777"
+      BPL_JMX_ENABLED: true
+
+    logging:
+      driver: "json-file"
+      #options:
+        # tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    volumes:
+      - "java-cache:/opt/sharedcache"
+      #- "resource-cache:/root/.cache/javasharedresources/"
+    ports:
+      - "8090:8080"
+      - "4450:4452"
+    depends_on:
+      - accounts-database
+
+  gamestate:
+    image: ghcr.io/lostcities-cloud/lostcities-gamestate:0.0.79
+    restart: always
+    logging:
+      driver: "json-file"
+      #options:
+      #  tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    environment:
+      JAVA_OPTIONS: "-Xshareclasses:name=jvm-cache,cacheDir=/opt/sharedcache,cacheDirPerm=0777"
+      SPRING_PROFILES_ACTIVE: dev
+      BPL_JMX_ENABLED: true
+    volumes:
+      - "java-cache:/opt/sharedcache"
+      #- "resource-cache:/root/.cache/javasharedresources"
+    expose:
+      - "8092"
+    ports:
+      - "8092:8092"
+
+    depends_on:
+      - matches
+      - redis
+      - rabbitmq
+
+  matches:
+    image: ghcr.io/lostcities-cloud/lostcities-matches:0.0.72
+    restart: always
+    logging:
+      driver: "json-file"
+      #options:
+      #  tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      BPL_JMX_ENABLED: true
+      JAVA_OPTIONS: "-Xshareclasses:name=jvm-cache,cacheDir=/opt/sharedcache,cacheDirPerm=0777"
+      OPENJ9_SCC: true
+    volumes:
+      - "java-cache:/opt/sharedcache"
+      #- "resource-cache:/root/.cache/javasharedresources"
+    expose:
+      - "8091"
+    ports:
+      - "8091:8091"
+
+    depends_on:
+      - matches-database
+      - rabbitmq
+
+  player-events:
+    image: ghcr.io/lostcities-cloud/lostcities-player-events:0.0.46
+    restart: always
+    logging:
+      driver: "json-file"
+      #options:
+      #  tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    environment:
+      JAVA_OPTIONS: "-Xshareclasses:name=jvm-cache,cacheDir=/opt/sharedcache,cacheDirPerm=0777"
+      SPRING_PROFILES_ACTIVE: dev
+      BPL_JMX_ENABLED: true
+    volumes:
+      - "java-cache:/opt/sharedcache"
+      #- "resource-cache:/root/.cache/javasharedresources"
+    expose:
+      - "8093"
+    ports:
+      - "8093:8093"
+
+    depends_on:
+      - rabbitmq
+      - gamestate
