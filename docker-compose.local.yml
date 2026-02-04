@@ -125,7 +125,21 @@ services:
     volumes:
       - ./infra/tempo/tempo-config.yaml:/etc/tempo.yaml
       - tempo-data:/var/tempo
-  #ports:
+  cadvisor:
+    image: ghcr.io/google/cadvisor:latest
+    container_name: cadvisor
+    privileged: true
+    ports:
+      - "9091:8080"
+    command: ["--podman", "unix:///var/run/podman/podman.sock"]
+    volumes:
+      #- /:/rootfs:ro
+      #- /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/run/user/1000/podman/podman.sock:/var/run/podman/podman.sock:ro
+    restart: always
+
+    #ports:
     # Tempo ingestion ports (OTLP, Jaeger, Zipkin, etc.)
     #- "14268:14268" # Jaeger
     #- "4317:4317"   # OTLP gRPC

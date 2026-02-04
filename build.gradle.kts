@@ -1,6 +1,8 @@
 plugins {
     id("org.owasp.dependencycheck") version "11.0.0"
     id("com.github.rising3.semver") version "0.8.2"
+    kotlin("plugin.serialization") version "2.3.+" apply false
+    // kotlin("plugin.serialization") version "2.3.0" apply false
 }
 
 group = "io.dereknelson"
