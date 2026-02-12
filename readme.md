@@ -1,14 +1,15 @@
 Future changes:
 - JWT token needs a public key
 - Load test ai matches
+- Use constants in authorization dsl annotation values
 - User game history page
 - Store completed games
--
 
-etcd commands
-```bash
-etcdctl put /services/example-service/random-id-1  localhost:8080
-
+Remove hibernate for creating database:
+```
+spring.jpa.properties.jakarta.persistence.schema-generation.scripts.action=create
+spring.jpa.properties.jakarta.persistence.schema-generation.scripts.create-target=create.sql
+spring.jpa.properties.jakarta.persistence.schema-generation.scripts.create-source=metadata
 ```
 
 # Internal links
