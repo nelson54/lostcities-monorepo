@@ -17,7 +17,7 @@ Priority:
 🟢 - Low
 
 Todo:
-- [ ] 📄: 🟠 Update dashboard to include links to actuator
+- [ ] 📄: 🟠 Update homer dashboard to include links to actuator
 - [ ] 🔒: 🔴 Accounts - Public key must be persisted
 - [ ] 🔒: 🔴 Accounts - Auth public and private keys should expire
 - [ ] 🔒: 🟠 Accounts - Create method to refresh expiring token
@@ -28,15 +28,16 @@ Todo:
 - [ ] 🚧: 🔴 UserEvents - Create rabbit fan out exchange and new queues per service
 - [ ] 🎨: 🟠 Matches - Send matchmaking event to Player Events
 - [ ] 🚧: 🟠 Spring upgrade
-  - [ ] 🚧: 🟠 3.2 to 3.3
-  - [ ] 🚧: 🟢 3.3 to 3.4
-  - [ ] 🚧: 🟢 3.5 to 4
+  - [ ] 🚧: 🟠 Spring upgrade 3.2 to 3.3
+  - [ ] 🚧: 🟢 Spring upgrade 3.3 to 3.4
+  - [ ] 🚧: 🟢 Spring upgrade 3.5 to 4
 - [ ] 🚧: 🟢 Front end - Move to latest Vue reduce complexity
 - [ ] 🔒: 🟢 Front end - Should be able to view token and check for expiration
 - [ ] 🔒: 🟢 Front end - Should periodically check for key to expire
 - [ ] 🔬: 🟢 Investigate native builds
 - [ ] 🚧: 🟢 Remove Hibernate and use JPA exclusively
 - [ ] 🚧: 🟢 Create Docker images and new dev environment that runs docker images
+- [ ] 🎨: 🟠 Matches - Store completed matches with replay information.
 - [x] 🔒: 🔴 Accounts - Expose public key over http
 - [x] 🔒: 🔴 Services should get public key from Accounts http endpoint
 - [x] 🌱: 🔴 Gamestate - Move to a cloud function
@@ -44,6 +45,19 @@ Todo:
 - [x] 🏎️: 🟠 Gamestate - Move to a Postgres
 - [x] 🚧: 🟢 UserEvents - Rename from PlayerEvents
 
+
+## RabbitMq queues and exchanges
+
+* Matches
+  * matches-gamestate-queue -> (gamestate-exchange)*
+  * matches-match-event-queue
+  * matches-user-event
+* Gamestate
+  * gamestate-exchange -> gamestate-event
+  * gamestate-user-event-queue -> (user-event-exchange)*
+* UserEvents
+  * user-event-exchange -> user-event-queue
+  * user-gamestate-event-queue -> (gamestate-exchange)*
  
 - Load test ai matches
 - Use constants in authorization dsl annotation values
