@@ -31,6 +31,7 @@ Todo:
   - [ ] 🚧: 🟠 3.2 to 3.3
   - [ ] 🚧: 🟢 3.3 to 3.4
   - [ ] 🚧: 🟢 3.5 to 4
+- [ ] 🚧: 🟢 Front end - Move to latest Vue reduce complexity
 - [ ] 🔒: 🟢 Front end - Should be able to view token and check for expiration
 - [ ] 🔒: 🟢 Front end - Should periodically check for key to expire
 - [ ] 🔬: 🟢 Investigate native builds
