@@ -1,5 +1,46 @@
-Future changes:
-- JWT token needs a public key
+# Lostcities Monorepo
+
+Type:
+🔒 - Auth
+🎨 - Experience
+👾 - Gameplay
+🌱 - Reduce resources
+🏎️ - Performance
+🚧 - Maintenance
+🧪 - Testing 
+🔬 - Investigation
+
+Priority: 
+🔴 - High
+🟠 - Medium
+🟢 - Low
+
+Todo:
+- [ ] 🔒: 🔴 Accounts - Public key must be persisted
+- [ ] 🔒: 🔴 Accounts - Auth public and private keys should expire
+- [ ] 🔒: 🟢 Front end - Should be able to view token and check for expiration
+- [ ] 🔒: 🟢 Front end - Should periodically check for key to expire
+- [ ] 🔒: 🟠 Accounts - Create method to renew expiring token
+- [ ] 🌱: 🟠 Gamestate - remove actuator, add push gateway
+- [ ] 🧪: 🔴 Unit test Jackson serialization for PlayerView Dtos
+- [ ] 🌱: 🔴 Matches - Create a rabbit queue for Matchmaking
+- [ ] 🚧: 🔴 Matches - Create rabbit exchanges and migrate to new queues with routing key
+- [ ] 🚧: 🔴 UserEvents - Create rabbit fan out exchange and new queues per service
+- [ ] 🎨: 🟠 Matches - Send matchmaking event to Player Events
+- [ ] 🚧: 🟠 Spring upgrade
+  - [ ] 🚧: 🟠 3.2 to 3.3
+  - [ ] 🚧: 🟢 3.3 to 3.4
+  - [ ] 🚧: 🟢 3.5 to 4
+- [ ] 🔬: 🟢 Investigate native builds
+- [ ] 🚧: 🟢 Remove Hibernate and use JPA exclusively
+- [x] 🔒: 🔴 Accounts - Expose public key over http
+- [x] 🔒: 🔴 Services should get public key from Accounts http endpoint
+- [x] 🌱: 🔴 Gamestate - Move to a cloud function
+- [x] 🏎️: 🟠 Gamestate - Move messages from json to protobuf
+- [x] 🏎️: 🟠 Gamestate - Move to a Postgres
+- [x] 🚧: 🟢 UserEvents - Rename from PlayerEvents
+
+ 
 - Load test ai matches
 - Use constants in authorization dsl annotation values
 - User game history page
