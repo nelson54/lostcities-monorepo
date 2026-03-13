@@ -1,14 +1,14 @@
 # Lostcities Monorepo
 
 Type:
-🔒 - Auth
-🎨 - Experience
-👾 - Gameplay
-🌱 - Reduce resources
-🏎️ - Performance
-🚧 - Maintenance
-🧪 - Testing 
-🔬 - Investigation
+- 🔒 - Auth
+- 🎨 - Experience
+- 👾 - Gameplay
+- 🌱 - Reduce resources
+- 🏎️ - Performance
+- 🚧 - Maintenance
+- 🧪 - Testing 
+- 🔬 - Investigation
 
 Priority: 
 🔴 - High
