@@ -9,8 +9,8 @@ project(":lostcities-gamestate").projectDir = File(settingsDir, "./services/lost
 include(":lostcities-matches")
 project(":lostcities-matches").projectDir = File(settingsDir, "./services/lostcities-matches")
 
-include(":lostcities-player-events")
-project(":lostcities-player-events").projectDir = File(settingsDir, "./services/lostcities-player-events")
+include(":lostcities-user-events")
+project(":lostcities-user-events").projectDir = File(settingsDir, "./services/lostcities-user-events")
 
 include(":lostcities-frontend")
 project(":lostcities-frontend").projectDir = File(settingsDir, "./services/lostcities-frontend")

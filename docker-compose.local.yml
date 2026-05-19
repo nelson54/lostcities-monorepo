@@ -1,70 +1,115 @@
-version: '3'
+version: "3.8"
+
+configs:
+  "rabbitmq-plugins":
+    content: "[rabbitmq_prometheus,rabbitmq_management]."
+  "postgres-init":
+    content: |
+      CREATE EXTENSION IF NOT EXISTS dblink;
+
+      CREATE OR REPLACE FUNCTION safe_create_user(v_username text, v_password text) RETURNS void AS $$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = v_username) THEN
+            EXECUTE 'CREATE USER ' || quote_ident(v_username) || ' WITH ENCRYPTED PASSWORD ' || quote_literal(v_password);
+        END IF;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      SELECT safe_create_user(v_username := 'postgres', v_password := 'example');
+      SELECT safe_create_user(v_username := 'accounts', v_password := 'example');
+      SELECT safe_create_user(v_username := 'gamestate', v_password := 'example');
+      SELECT safe_create_user(v_username := 'matches', v_password := 'example');
+
+      CREATE OR REPLACE FUNCTION safe_create_database(db_name text) RETURNS void AS $$
+      BEGIN
+        IF NOT EXISTS (
+            SELECT datname FROM pg_catalog.pg_database WHERE lower(datname) = lower(db_name)
+        ) THEN
+            PERFORM dblink_exec(
+                'dbname=' || current_database(),
+                'CREATE DATABASE '  || quote_ident(db_name) || ' WITH ENCODING="UTF8" CONNECTION LIMIT = -1'
+            );
+        END IF;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      SELECT safe_create_database(db_name := 'postgres');
+      GRANT ALL PRIVILEGES ON DATABASE "postgres" TO postgres;
+      GRANT ALL PRIVILEGES ON schema public TO "postgres";
+
+
+      SELECT safe_create_database(db_name := 'lostcities-accounts'::text);
+      GRANT ALL PRIVILEGES ON database "lostcities-accounts" TO "accounts";
+      GRANT ALL PRIVILEGES ON database "lostcities-accounts" TO "postgres";
+      ALTER DATABASE "lostcities-accounts" OWNER TO accounts;
+
+      SELECT safe_create_database(db_name := 'lostcities-matches');
+      GRANT ALL PRIVILEGES ON database "lostcities-matches" TO "matches";
+      GRANT ALL PRIVILEGES ON database "lostcities-matches" TO "postgres";
+      ALTER DATABASE "lostcities-matches" OWNER TO matches;
+
+
+      SELECT safe_create_database(db_name := 'lostcities-gamestate');
+      GRANT ALL PRIVILEGES ON database "lostcities-gamestate" TO "gamestate";
+      GRANT ALL PRIVILEGES ON database "lostcities-gamestate" TO "postgres";
+      ALTER DATABASE "lostcities-gamestate" OWNER TO gamestate;
+
+
+
 
 volumes:
   java-cache:
   grafana-data:
   tempo-data:
-  postgres_data_matches:
-  postgres_data_accounts:
+  postgres_data:
   redis_data:
   rabbit_data:
   prometheus_data:
 
 services:
 
-  accounts-database:
-    image: postgres:alpine
+
+  postgres-database:
+    image: postgres:18-alpine
     restart: unless-stopped
+    configs:
+      - source: postgres-init
+        target: /docker-entrypoint-initdb.d/seed.sql
     environment:
-      POSTGRES_USER: accounts
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: example
-      POSTGRES_DB: lostcities-accounts
+      POSTGRES_DB: postgres
 
     ports:
       - "5432:5432"
     volumes:
-      - "postgres_data_accounts:/var/lib/postgresql/data/"
+      - "postgres_data:/var/lib/postgresql/data/"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  matches-database:
-    image: postgres:alpine
-    restart: unless-stopped
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter
     environment:
-      POSTGRES_USER: matches
-      POSTGRES_PASSWORD: example
-      POSTGRES_DB: lostcities-matches
-    volumes:
-      - "postgres_data_matches:/var/lib/postgresql/data/"
-    ports:
-      - "5433:5432"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      DATA_SOURCE_NAME: "postgresql://postgres:example@postgres-database:5432/postgres?sslmode=disable"
+    depends_on:
+      postgres-database:
+        condition: service_healthy
 
-  redis:
-    image: redis:6-alpine3.17
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - "redis_data:/data"
-    working_dir: /data
-    healthcheck:
-      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
 
   rabbitmq:
-    image: rabbitmq:4-management-alpine
+    image: rabbitmq:4.2.5-management-alpine
     ports:
       - "5672:5672"
       - "15672:15672"
+      - "15692:15692"
     volumes:
       - rabbit_data:/var/lib/rabbitmq/
+    configs:
+      - source: rabbitmq-plugins
+        target: /etc/rabbitmq/enabled_plugins
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics",  "check_running", "&&", "rabbitmq-diagnostics", "ping"]
 
@@ -102,6 +147,10 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
     depends_on:
       - prometheus
+  #perses:
+  #  image: persesdev/perses:v0.51.0
+  #  ports:
+  #    - "3001:8080"
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     container_name: otel-collector
@@ -115,13 +164,12 @@ services:
       - "8888:8888"   # Prometheus metrics (internal)
       - "13133:13133" # Health check extension
   tempo:
-    image: grafana/tempo:latest
+    image: docker.io/grafana/tempo:2.9.2
     container_name: tempo
-    command: [ "-config.file=/etc/tempo.yaml" , "-target=all"]
+    command:  "-target=all -config.file=/etc/tempo.yaml"
 
     ports:
       - "3200:3200"
-
     volumes:
       - ./infra/tempo/tempo-config.yaml:/etc/tempo.yaml
       - tempo-data:/var/tempo
@@ -129,19 +177,23 @@ services:
     image: ghcr.io/google/cadvisor:latest
     container_name: cadvisor
     privileged: true
+    user: root
+    security_opt:
+      - label=disable
+      - no-new-privileges=true
     ports:
       - "9091:8080"
-    command: ["--podman", "unix:///var/run/podman/podman.sock"]
-    volumes:
-      #- /:/rootfs:ro
-      #- /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /var/run/user/1000/podman/podman.sock:/var/run/podman/podman.sock:ro
-    restart: always
 
-    #ports:
-    # Tempo ingestion ports (OTLP, Jaeger, Zipkin, etc.)
-    #- "14268:14268" # Jaeger
-    #- "4317:4317"   # OTLP gRPC
-    #- "4318:4318"   # OTLP HTTP
-    #- "3200:3200"   # Tempo queries
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      #- /cgroup:/cgroup:ro
+      #- /var/lib/docker/:/var/lib/docker:ro # Optional, for systems with both Docker and Podman
+      - /dev/disk/:/dev/disk:ro
+      # Specific mounts for Podman rootless support:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      # Map the host's Podman socket into the container:
+      - /run/user/1000/podman:/var/run/podman:ro
+    command: ["--podman", "unix:///var/run/podman/podman.sock"]
+    restart: always

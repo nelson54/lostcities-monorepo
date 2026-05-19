@@ -7,11 +7,11 @@ Type:
 - 🌱 - Reduce resources
 - 🏎️ - Performance
 - 🚧 - Maintenance
-- 🧪 - Testing 
+- 🧪 - Testing
 - 🔬 - Investigation
 - 📄 - Documentation
 
-Priority: 
+Priority:
 🔴 - High
 🟠 - Medium
 🟢 - Low
@@ -58,7 +58,7 @@ Todo:
 * UserEvents
   * user-event-exchange -> user-event-queue
   * user-gamestate-event-queue -> (gamestate-exchange)*
- 
+
 - Load test ai matches
 - Use constants in authorization dsl annotation values
 - User game history page
@@ -75,6 +75,7 @@ spring.jpa.properties.jakarta.persistence.schema-generation.scripts.create-sourc
 Applications:
 
 - http://localhost:8080/api/accounts/swagger-ui/api-docs.html
+- http://localhost:8080/api/accounts/public-key
 - http://localhost:8081/api/matches
 - http://localhost:8082/api/gamestate
 - http://localhost:8083/api/player-events
